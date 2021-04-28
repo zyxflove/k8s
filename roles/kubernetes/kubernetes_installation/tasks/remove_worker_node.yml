@@ -1,0 +1,42 @@
+#the following two tasks read the registry information from the respective var files (first defaults file so that variables can be replaced by the group_vars file)
+#We only need the private_registry public certificate name
+#- name: "gather info about the docker registry: reading default_vars"
+#  include_vars:
+#    file: "{{inventory_dir.split('inventories')[0]}}roles/kubernetes/docker/docker_registry/defaults/main.yml"
+
+#- name: "gather info about the docker registry: reading group_vars"
+#  include_vars:
+#    file: "{{inventory_dir}}/group_vars/infrastructure_kubernetes_registry"
+
+- name: reset kubeadm
+  command: "kubeadm reset -f"
+  become: true
+
+- name: remove kubernetes services
+  include_role:
+    name: roles/kubernetes/helpers
+    tasks_from: yum_remove_packages
+  vars:
+    packages_to_remove: "{{kubernetes_yum_packages}}"
+    services_to_stop: "{{kubernetes_services}}"
+- name: "delete flannel "
+  command: "ip link delete flannel.1"
+  become: true
+  ignore_errors: true
+
+
+- name: "delete cni "
+  command: "ip link delete cni0"
+  become: true
+  ignore_errors: true
+
+- name: remove kubernetes directories
+  include_role:
+    name: roles/kubernetes/helpers
+    tasks_from: cleanup_directories
+  vars:
+    directories_to_remove:
+      - /var/lib/kubelet
+      - /etc/kubernetes
+      - "/etc/pki/ca-trust/source/anchors/{{docker_registry_certs[0]}}"
+      - "$HOME/.kube/"

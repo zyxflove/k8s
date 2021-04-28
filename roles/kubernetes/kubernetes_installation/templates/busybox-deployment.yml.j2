@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: busybox-deployment
+  labels:
+    app: busy-box
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: busy-box
+  template:
+    metadata:
+      labels:
+        app: busy-box
+    spec:
+      containers:
+      - name: busy-box
+        image: {{docker_registry_ip}}:{{docker_registry_port}}/busybox:latest
+        command: [ "/bin/sh", "-c", "--" ]
+        args: [ "while true; do sleep 30; done;" ]
+      imagePullSecrets:
+      - name: private-registry-secret

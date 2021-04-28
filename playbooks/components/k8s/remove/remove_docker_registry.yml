@@ -1,0 +1,22 @@
+---
+- name: remove private registry
+  hosts: infrastructure_kubernetes_registry
+
+  tasks:
+    - name: starting installation of docker python scripts
+      include_role:
+        name: roles/kubernetes/docker/docker_installation
+        tasks_from: install_docker-py
+
+    - name: removing registry
+      include_role:
+        name: roles/kubernetes/docker/docker_registry
+        tasks_from: remove_registry
+
+    - name: "remove urllib3 to fix duplicity version conflict"
+      command: "pip uninstall urllib3 -y"
+      become: true
+
+    - name: "remove urllib3 to fix duplicity version conflict"
+      command: "yum install python-urllib3 -y"
+      become: true

@@ -1,0 +1,3 @@
+- import_playbook: install_kubernetes_master_kubeadm.yml
+
+- import_playbook: add_worker_nodes_to_cluster.yml

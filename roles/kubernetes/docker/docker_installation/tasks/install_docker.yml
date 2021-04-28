@@ -1,0 +1,28 @@
+- name: Copy rpm files to target machine
+  include_role:
+    name: roles/kubernetes/helpers
+    tasks_from: installers_to_target
+  vars:
+    needed_files: "{{docker_rpm_files}}"
+    copy_to: "{{kubernetes_tmp_downloads}}"
+    copy_from: "{{docker_rpm_installables_dir}}"
+
+- name: install docker from rpm files
+  include_role:
+    name: roles/kubernetes/helpers
+    tasks_from: yum_install_packages
+  vars:
+    packages: "{{docker_rpm_files}}"
+    packages_location: "{{kubernetes_tmp_downloads}}"
+
+- name: "make sure the storage directory for docker exists"
+  file:
+    path: "{{docker_storage_path}}"
+    state: directory
+    owner: "{{ansible_user_id}}"
+    group: "{{ansible_group_id}}"
+  become: true
+
+- name: "config and start docker"
+  import_tasks: config_docker.yml
+  become: true

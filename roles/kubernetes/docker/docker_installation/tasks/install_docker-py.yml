@@ -1,0 +1,33 @@
+
+
+- name: copy needed packages to target machine
+  include_role:
+    name: roles/kubernetes/helpers
+    tasks_from: installers_to_target
+  vars:
+    needed_files: 
+      - "" #empty string to copy the whole folder
+    copy_to: "{{kubernetes_tmp_downloads}}"
+    copy_from: "{{docker_rpm_py_installables_dir}}"
+
+- name: install pip from rpm files
+  include_role:
+    name: roles/kubernetes/helpers
+    tasks_from: yum_install_packages
+  vars:
+    packages: "{{docker_py_needed_packages_pip}}"
+    packages_location: "{{kubernetes_tmp_downloads}}"
+
+- name: install docker-py
+  pip:
+    name: "file:{{kubernetes_tmp_downloads}}/docker-3.5.1-py2.py3-none-any.whl"
+#    chdir: "{{kubernetes_tmp_downloads}}"
+    state: present
+    extra_args: --no-index --find-links file:{{kubernetes_tmp_downloads}} --force --upgrade
+  become: true
+
+- name: modify mode of /usr/lib/python
+  shell: chmod 0755 -R /usr/lib/python2.7
+  become: true
+  ignore_errors: yes
+

@@ -1,0 +1,14 @@
+#takes a list of config files based on templates, checks that the target exists and places them in target directory.
+- name: make sure configuration target directory exists
+  file:
+    path: "{{item.destination_dir}}"
+    state: directory
+  loop: "{{template_files|flatten(levels=1)}}"
+  become: true
+
+- name: "add configuration file {{item}}"
+  template:
+    src: "{{item.source}}"
+    dest: "{{item.destination_dir}}/{{item.destination_file}}"
+  become: true
+  loop: "{{template_files|flatten(levels=1)}}"

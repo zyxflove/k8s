@@ -1,0 +1,10 @@
+{
+  "graph":"{{docker_storage_path}}",
+  "max-concurrent-downloads":{{docker_max_concurrent_downloads}},
+  "max-concurrent-uploads":{{docker_max_concurrent_uploads}},
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "log-opts": {
+                "max-size": "{{max_size_of_pod_log}}",
+                "max-file": "{{max_num_of_pod_log}}"
+        }
+}

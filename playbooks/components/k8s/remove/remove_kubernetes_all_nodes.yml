@@ -1,0 +1,4 @@
+---
+  
+- import_playbook: remove_kubernetes_workers.yml
+- import_playbook: remove_kubernetes_masters.yml

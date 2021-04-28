@@ -1,0 +1,20 @@
+- name: "make sure /etc/docker directory exists"
+  file:
+    path: "/etc/docker"
+    state: directory
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_group_id }}"
+  become: true
+
+- name: "deploy docker config file"
+  template:
+    src: daemon.json.j2
+    dest: "/etc/docker/daemon.json"
+  become: true
+
+- name: start the docker service
+  service:
+    name: docker
+    enabled: true
+    state: restarted
+  become: true
