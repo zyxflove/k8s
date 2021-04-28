@@ -1,0 +1,204 @@
+- name: copy rpm files to target machine
+  include_role:
+    name: roles/kubernetes/helpers
+    tasks_from: installers_to_target
+  vars:
+    needed_files: "{{kubernetes_rpm_files}}"
+    copy_to: "{{kubernetes_tmp_downloads}}/kubernetes_rpm_files"
+    copy_from: "{{kubernetes_installables_dir}}/rpm_packages/kubeadm"
+
+- name: Disable SWAP since kubernetes can't work with swap enabled (1/2)
+  shell: swapoff -a
+  become: true
+
+- name: Disable SWAP in fstab since kubernetes can't work with swap enabled (2/2)
+  replace:
+    path: /etc/fstab
+    regexp: '^(.+?\sswap\s+swap\s+.*)$'
+    replace: '# \1'
+  become: true
+
+- name: install kubernetes needed packages from rpm files
+  include_role:
+    name: roles/kubernetes/helpers
+    tasks_from: yum_install_packages
+  vars:
+    packages: "{{kubernetes_rpm_files}}"
+    packages_location: "{{kubernetes_tmp_downloads}}/kubernetes_rpm_files"
+
+- name: enable kubernetes service so it survives reboots
+  service:
+    name: kubelet
+    enabled: yes
+  become: true
+  
+- name: Make k8s housekeeping directory
+  file: 
+    path: "{{ k8s_housekeeping_dir }}"
+    state: directory
+    owner: "{{ application_user }}"
+    group: "{{ application_group }}"
+    mode: "{{ permissions_mode }}"
+  become: true
+
+- name: copy kubelet starting script
+  template:
+    src: kubelet.sh.j2
+    dest: "{{ k8s_housekeeping_dir }}/kubelet.sh"
+    owner: "{{ application_user }}"
+    group: "{{ application_group }}"
+    mode: "{{ permissions_mode }}"
+
+- name: copy k8s node hostname ini 
+  template:
+    src: k8snodes.ini.j2
+    dest: "{{ k8s_housekeeping_dir }}/k8snodes.ini"
+    owner: "{{ application_user }}"
+    group: "{{ application_group }}"
+    mode: "{{ permissions_mode }}"
+  
+- name: add command line to rc.local and give the permission
+  lineinfile:
+    path: /etc/rc.d/rc.local
+    line: "su - zon-admin -c {{k8s_housekeeping_dir}}/kubelet.sh>>{{k8s_housekeeping_dir}}/kubelet.log"
+    state: present
+    mode: 0755
+  become: true
+
+
+- name: copy kubernetes image files to target machine
+  include_role:
+    name: roles/kubernetes/helpers
+    tasks_from: installers_to_target
+  vars:
+    needed_files: "{{kubernetes_image_extra_files}}"
+    copy_to: "{{kubernetes_tmp_downloads}}/kubernetes_image_files"
+    copy_from: "{{kubernetes_installables_dir}}/images/kubeadm"
+
+- name: kubeadm reset in case of previous failed installation
+  command: "kubeadm reset -f "
+  become: true
+
+- name: Logging in to Docker private registry and updating local config file
+  docker_login:
+    username: "{{docker_registry_username}}"
+    password: "{{docker_registry_password}}"
+    registry: "{{docker_registry_ip}}:{{docker_registry_port}}"
+  become: true
+
+- name: kubeadm init
+  command: "kubeadm init --kubernetes-version v1.19.6 --service-cidr={{Kubernetes_services_subnet}} --pod-network-cidr={{flanneld_fixed_subnet}} --image-repository={{docker_registry_ip}}:{{docker_registry_port}} --upload-certs"
+  become: true
+
+- name: make sure /var/lib/kubelet exists
+  file:
+    path: "/var/lib/kubelet"
+    state: directory
+    owner: "{{ansible_user_id}}"
+    group: "{{ansible_group_id}}"
+  become: true
+
+- name: copy docker config.json to allow kubeadm login to the registry
+  copy:
+    src: "/root/.docker/config.json"
+    dest: "/var/lib/kubelet"
+    remote_src: yes
+  become: true
+
+- name: add flannel configuration files
+  import_tasks: template_files.yml
+  vars:
+    template_files: "{{kubernetes_master_config_files}}"
+
+- name: "cleanup previous kubernetes installation if any"
+  file:
+    path: "$HOME/.kube"
+    state: absent
+
+- name: commands to use kubectl 1 of 3
+  file:
+    path: "/home/{{ansible_user_id }}/.kube"
+    state: directory
+    owner: "{{ansible_user_id}}"
+    group: "{{ansible_group_id}}"
+  become: true
+
+- name: commands to use kubectl 2 of 3
+  copy:
+    src: "/etc/kubernetes/admin.conf"
+    dest: "{{kubernetes_tmp_downloads}}/config"
+    owner: "{{ansible_user_id}}"
+    group: "{{ansible_group_id}}"
+    remote_src: yes
+  become: true
+
+- name: commands to use kubectl 3 of 3
+  copy:
+    src: "{{kubernetes_tmp_downloads}}/config"
+    dest: "/home/{{ansible_user_id }}/.kube/config"
+    owner: "{{ansible_user_id}}"
+    group: "{{ansible_group_id}}"
+    remote_src: yes
+  become: true
+
+- name: resolve static pod controller-manager and scheduler unhealthy issue
+  lineinfile:
+    path: "/etc/kubernetes/manifests/{{item}}"
+    regexp: '\- \-\-port\=0'
+    line: '#   - --port=0'    
+  loop:
+    - kube-controller-manager.yaml
+    - kube-scheduler.yaml
+  become: true
+
+- name: apply flannel network configuration
+  command: 'kubectl apply -f "{{kubernetes_tmp_downloads}}/configuration_files/flannel.yml"'
+
+#- name: update etcd with the new flannel network configuration
+#  command: "curl -L http://127.0.0.1:2379/v2/keys/coreos.com/network/config -XPUT --data-urlencode value@{{kubernetes_tmp_downloads}}/configuration_files/flannel-config.json"
+
+- name: "copy registry's public certificate to target machine: /etc/pki/ca-trust/source/anchors"
+  include_role:
+    name: roles/kubernetes/helpers
+    tasks_from: installers_to_target
+    apply:
+      become: true
+  vars:
+    needed_files:
+      - "{{certificate}}" #this the first entry in the docker registry certificate list found in /roles/kubernetes/docker/docker_registry/defaults/main.yml, default value: private_reg.cert
+    copy_to: "/etc/pki/ca-trust/source/anchors"
+    copy_from: "{{certs_home_directory}}"
+
+- name: "update ca trust extract"
+  command: update-ca-trust extract
+  become: true
+
+- name: restart docker to update docker's trusted certificates
+  service:
+    name: docker
+    state: restarted
+  become: true
+
+- name: "waiting 60 seconds for kubernetes pods to start after restarting docker..."
+  pause:
+    seconds: 60
+
+- name: Logging in to Docker private registry and updating local config file
+  docker_login:
+    username: "zontal"
+    password: "zontalpwd"
+    registry: "{{docker_registry_ip}}:{{docker_registry_port}}"
+  become: true
+
+
+
+- name: "create secret to access docker registry"
+  command: "kubectl create secret docker-registry {{private_registry_secret}} --docker-server={{docker_registry_ip }}:{{docker_registry_port}} --docker-username={{docker_registry_username}} --docker-password={{docker_registry_password}} --docker-email=none@local.zontal"
+
+- name: "remove urllib3 to fix duplicity version conflict"
+  command: "pip uninstall urllib3 -y"
+  become: true
+
+- name: "remove urllib3 to fix duplicity version conflict"
+  command: "yum install python-urllib3 -y"
+  become: true

@@ -1,0 +1,26 @@
+
+- name: remove docker service
+  include_role:
+    name: roles/kubernetes/helpers
+    tasks_from: yum_remove_packages
+  vars:
+    packages_to_remove:
+      - docker-ce.x86_64
+      - docker-ce-cli.x86_64
+    services_to_stop:
+      - docker
+
+- name: remove docker directories
+  include_role:
+    name: roles/kubernetes/helpers
+    tasks_from: cleanup_directories
+  vars:
+    directories_to_remove:
+      - /var/lib/docker
+      - /etc/docker
+      - "{{docker_storage_path}}"
+
+- name: "delete docker bridge "
+  command: "ip link delete docker0"
+  become: true
+  ignore_errors: true

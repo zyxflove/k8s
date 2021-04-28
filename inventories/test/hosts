@@ -1,0 +1,20 @@
+[infrastructure_kubernetes_all_nodes]
+host_1
+host_2
+host_3
+host_4
+[all_kubernetes_workers]
+host_2
+host_3
+host_4
+[all_kubernetes_masters]
+host_1
+[control]
+host_1
+[infrastructure_kubernetes_registry]
+host_1
+[all linux]
+host_1
+host_2
+host_3
+host_4

@@ -1,0 +1,9 @@
+until curl -sL -k https://localhost:6443/healthz -o /dev/null
+do
+  echo "restarted all kubelet service on worker nodes after control panel node reboot at$(date)"
+  for i in $(cat {{k8s_housekeeping_dir}}/k8snodes.ini)
+  do
+    ssh $i "sudo systemctl restart kubelet"
+  done
+sleep 10
+done

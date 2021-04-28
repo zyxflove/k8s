@@ -1,0 +1,3 @@
+{% for item in groups['infrastructure_kubernetes_all_nodes'] %}
+{{hostvars[item].ansible_host}}
+{% endfor %}

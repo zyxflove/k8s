@@ -1,0 +1,43 @@
+kubernetes_rpm_files:
+  - "libnetfilter_cttimeout-1.0.0-6.el7.x86_64.rpm"
+  - "libnetfilter_queue-1.0.2-2.el7_2.x86_64.rpm"
+  - "libnetfilter_cthelper-1.0.0-9.el7.x86_64.rpm"
+  - "db7cb5cb0b3f6875f54d10f02e625573988e3e91fd4fc5eef0b1876bb18604ad-kubernetes-cni-0.8.7-0.x86_64.rpm"
+  - "54771e7527e0b944547be56dac91aa85537b4e206c64a34735c68a625fc12b1f-kubeadm-1.19.6-0.x86_64.rpm"
+  - "conntrack-tools-1.4.4-4.el7.x86_64.rpm"
+  - "0dda024c7a5801c1bdf0de440ddede8f1809e5b2fa3f535f1f7dd8d1275c7338-kubectl-1.19.6-0.x86_64.rpm"
+  - "14bfe6e75a9efc8eca3f638eb22c7e2ce759c67f95b43b16fae4ebabde1549f3-cri-tools-1.13.0-0.x86_64.rpm"
+  - "16113ad867053fec1ecbefc61994932a3d9ab022cb59443d909ba59681d8dc55-kubelet-1.19.6-0.x86_64.rpm"
+
+kubernetes_image_extra_files:
+  - "nginx.tar"
+  - "busybox.tar" 
+
+
+
+kubernetes_yum_packages:
+  - kubernetes-cni.x86_64
+  - kubelet.x86_64
+  - kubectl.x86_64
+  - kubeadm.x86_64
+
+kubernetes_services:
+  - kubelet
+
+docker_registry_ip: ""
+
+kubernetes_tmp_downloads: "'{{inventory_dir.split('inventories')[0]}}'../kubernetes_tmp_files"
+
+k8s_housekeeping_dir: "{{ installables_dir_kubernetes }}/housekeeping"
+
+permissions_mode: "u=rwx,g=rx,o=rx"
+
+kubernetes_master_config_files:
+  - {source: "flannel.yml.j2", destination_dir: "{{kubernetes_tmp_downloads}}/configuration_files", destination_file: flannel.yml}
+  - {source: "flannel-config.json.j2", destination_dir: "{{kubernetes_tmp_downloads}}/configuration_files", destination_file: flannel-config.json}
+  - {source: "busybox-deployment.yml.j2", destination_dir: "{{installables_dir_kubernetes}}/deployments", destination_file: "busybox-deployment.yml"}
+  - {source: "nginx-deployment.yml.j2", destination_dir: "{{installables_dir_kubernetes}}/deployments", destination_file: "nginx-deployment.yml"}
+#default node name in case it's not set in the host file
+kubernetes_node_name: "{{ansible_host}}"
+
+private_registry_secret: "private-registry-secret" #name of the secret created on kubernetes to access the registry. No need to change. IMP: CANNOT CONTAIN SPECIAL CHARACTERS ONLY [a-z,0-9,-]

@@ -1,0 +1,10 @@
+---
+- name: remove kubernetes from worker nodes
+  hosts: all_kubernetes_workers
+  remote_user: "{{ansible_user_id}}"
+
+  tasks:
+    - name: starting to remove kubernetes from worker node(s)...
+      include_role:
+        name: roles/kubernetes/kubernetes_installation
+        tasks_from: remove_worker_node

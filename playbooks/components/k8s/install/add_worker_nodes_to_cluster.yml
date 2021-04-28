@@ -1,0 +1,45 @@
+---
+- name: install kubernetes on worker node(s)
+  hosts: all_kubernetes_workers
+  remote_user: "{{user_id}}"
+
+  tasks:
+
+    - name: installing docker
+      include_role:
+        name: roles/kubernetes/docker/docker_installation
+        tasks_from: install_docker
+      tags:
+        - install_docker
+    - name: installing docker py
+      include_role:
+        name: roles/kubernetes/docker/docker_installation
+        tasks_from: install_docker-py
+      tags:
+        - install_docker
+
+    - name: executing get token command
+      command: "kubeadm token create --print-join-command"
+      become: true
+      register: "kubeadm_join_command_output"
+      delegate_to: "{{groups['all_kubernetes_masters'][0]}}"
+      delegate_facts: true
+
+    - set_fact:
+        kubeadm_join_command: "{{kubeadm_join_command_output.stdout}}"
+    - name: debug join token
+      debug: var="kubeadm_join_command"
+
+    - name: get configuration files from master
+      fetch:
+       src: "{{kubernetes_tmp_downloads}}/config"
+       dest: "{{ inventory_dir}}/cluster_configuration_file_auto_generated"
+       flat: yes
+      delegate_to: "{{groups['all_kubernetes_masters'][0]}}"
+      delegate_facts: true
+
+
+    - name: starting kubernetes installation...
+      include_role:
+        name: roles/kubernetes/kubernetes_installation
+        tasks_from: install_worker_nodes

@@ -1,0 +1,26 @@
+---
+- name: install kubernetes on master nodes
+  hosts: all_kubernetes_masters
+  remote_user: "{{user_id}}"
+
+  tasks:
+    - name: installing docker
+      include_role:
+        name: roles/kubernetes/docker/docker_installation
+        tasks_from: install_docker
+      tags:
+        - install_docker
+    - name: installing docker py
+      include_role:
+        name: roles/kubernetes/docker/docker_installation
+        tasks_from: install_docker-py
+      tags:
+        - install_docker
+
+    - name: starting kubernetes installation on master node(s)...
+      include_role:
+        name: roles/kubernetes/kubernetes_installation
+        tasks_from: install_kubeadm
+      vars:
+        application_user: "{{ user_id }}"
+        application_group: "{{ group_id }}"

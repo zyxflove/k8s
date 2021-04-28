@@ -1,0 +1,10 @@
+---
+- name: remove kubernetes from master nodes
+  hosts: all_kubernetes_masters
+  remote_user: "{{ansible_user_id}}"
+
+  tasks:
+    - name: starting to remove kubernetes from master node(s)...
+      include_role:
+        name: roles/kubernetes/kubernetes_installation
+        tasks_from: remove_master_node
